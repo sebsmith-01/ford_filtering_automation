@@ -1,0 +1,5 @@
+__pycache__/
+ownership_databases/
+secrets/
+weekly_data/
+.env
