@@ -197,7 +197,7 @@ for (veh_id, vehicle_name), grp in grouped:
     data_to_add = weekly_data.loc[include_mask].copy()
     
     # Add vehicle_ownership_status column
-    data_to_add["vehicle_ownership_status"] = np.where(
+    data_to_add["vehicle_ownership_status"] = pd.where(
         data_to_add["author_name"].isin(authors),
         data_to_add["author_name"].map(author_to_status)
     )
