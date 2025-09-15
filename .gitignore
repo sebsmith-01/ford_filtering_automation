@@ -3,3 +3,4 @@ ownership_databases/
 secrets/
 weekly_data/
 .env
+.DS_Store
