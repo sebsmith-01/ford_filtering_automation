@@ -3,13 +3,15 @@ import os, sys, subprocess, json, pathlib, logging, requests, re
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 from datetime import datetime, timedelta
+from dotenv import load_dotenv
 
-# Need to generalise this script so that it can be used for other projects
-# Create as a python file that accepts certain arguments 
-BOT_TOKEN        = "xoxb-1293022677601-9402791736710-YqayFdAhWWFWsJAqeLYxBwo2"  
-APP_TOKEN        = "xapp-1-A09BUP22TK8-9414602977969-7de370acd98598f439841ad3a27cf15275ff2a68705d459231b38893c30ecb47"   
-TARGET_CHANNEL   = "C07U62M8FBJ"     # ford channel 
-TARGET_USER      = "U03ACGAR2QJ"     # Danny's User ID
+load_dotenv()
+
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+APP_TOKEN = os.getenv("APP_TOKEN")
+TARGET_CHANNEL = os.getenv("TARGET_CHANNEL")
+TARGET_USER = os.getenv("TARGET_USER")
+
 # will need editing on another person's machine
 DOWNLOAD_DIR     = "/Users/seb.smith/Downloads"
 PY_SCRIPT        = "run_all.py"
@@ -60,6 +62,7 @@ headers = {"Authorization": f"Bearer {BOT_TOKEN}"}  # needed for url_private dow
 @app.event("message")
 def handle_message_events(body, event, logger):
     try:
+        print("Message received...")
         if event.get("subtype") == "bot_message":
             return
         if event.get("channel") != TARGET_CHANNEL:

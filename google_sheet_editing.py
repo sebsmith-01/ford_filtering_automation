@@ -136,7 +136,7 @@ def add_ownership_count_column(df: pd.DataFrame) -> pd.DataFrame:
 TEMPLATE_FILE_ID = extract_file_id("https://docs.google.com/spreadsheets/d/1WridMYMZ4uuJWrNLmkG6JSTjLk7oEUi_ZSaDKvA2AfQ/edit#gid=0")
 
 # Copy the template for this week
-copied_file = {"name": f"For report_{monday_str}_fb"}
+copied_file = {"name": f"For report_{monday_str}"}
 new_file = drive_service.files().copy(fileId=TEMPLATE_FILE_ID, body=copied_file).execute()
 SPREADSHEET_ID = new_file["id"]
 
