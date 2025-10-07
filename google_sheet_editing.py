@@ -12,6 +12,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from pandas.api.types import is_object_dtype
 from google.auth.exceptions import RefreshError
+import numpy as np
 
 load_dotenv()
 
@@ -177,6 +178,7 @@ for (veh_id, vehicle_name), grp in grouped:
     thread_searches = get_cell_list(filtering_instructions, vehicle_name, "thread_title")
     is_eu7 = filtering_instructions.loc[vehicle_name]["is_EU7"]
     country_codes = EU7 if is_eu7 else EU5
+    e_authors = get_cell_list(filtering_instructions, vehicle_name, "exclude_owners")
 
     # Build filtering masks
     m_authors = weekly_data["author_name"].isin(authors)
@@ -197,9 +199,10 @@ for (veh_id, vehicle_name), grp in grouped:
     data_to_add = weekly_data.loc[include_mask].copy()
     
     # Add vehicle_ownership_status column
-    data_to_add["vehicle_ownership_status"] = pd.where(
+    data_to_add["vehicle_ownership_status"] = np.where(
         data_to_add["author_name"].isin(authors),
-        data_to_add["author_name"].map(author_to_status)
+        data_to_add["author_name"].map(author_to_status),
+        ""
     )
     
     # Add count of owned vehicles based on ownership_database

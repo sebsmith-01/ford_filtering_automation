@@ -4,7 +4,7 @@ import sys
 
 # Replace with value for current week (copy and paste from url)
 # sheet_id = "1Wt3BLHUSnQahP9QTYVdd1SX7YywfWw6aOXRD6SeDNG0"
-sheet_id = "1r14zDB_FN04Tk9Ax3tb3akpX1uEfJZquHmm9m0Ey31A"
+sheet_id = "1a0Hq7V-rl6mrWadQOkiepFXHb14lBGROGswemiNH1ss"
 
 # Add more if needed. This is case sensitive 
 tagging_corrections = {
@@ -25,7 +25,7 @@ vehicle_ids_df = pd.read_csv('vehicle_ids.csv')
 vehicle_id_dict = vehicle_dict = dict(zip(vehicle_ids_df["vehicle_name"], vehicle_ids_df["desired_vehicle_id"]))
 
 # List of vehicle tabs with data to upload, edit accordingly
-vehicles_to_upload = ["Puma MCA"] 
+vehicles_to_upload = ["Puma Gen-E"] 
 
 to_upload = pd.DataFrame()
 for vehicle in vehicles_to_upload: 
@@ -58,4 +58,4 @@ for vehicle in vehicles_to_upload:
 
     to_upload = pd.concat([to_upload, all_data], ignore_index=True)
     
-to_upload.to_excel("test1.xlsx", index=False)
+to_upload.to_excel("gen-e-upload-wc15thSept.xlsx", index=False)

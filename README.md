@@ -26,7 +26,7 @@ This script performs the following operations:
 
 The following scripts are also included: 
 ## excel_upload.py
-Contructs a properly formatted excel spreadsheet of all 'hits' for a set of vehicles in vehicles_to_upload, pulling from the week's tagging file, ready to upload to our database
+Contructs a properly formatted excel spreadsheet of all 'hits' for a set of vehicles in vehicles_to_upload, pulling from the week's tagging file, ready to upload to our database.
 Value checking is also performed on the sentiment, ownership, country_code, id+id_2 and feedback_subcategory columns.
 ## slack_listener.py (WIP)
 Will automatically download the weekly data files (sent by Danny Quinn on the #ford slack channel) using a Slack bot, and run the run_all.py script

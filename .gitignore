@@ -4,3 +4,4 @@ secrets/
 weekly_data/
 .env
 .DS_Store
+test.csv
