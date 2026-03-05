@@ -18,7 +18,6 @@ def google_sheet_to_dataframe(tab_name: str, sheet_id: str) -> pd.DataFrame:
 def get_cell_list(df: pd.DataFrame, index: str, column: str) -> list: 
     cell = str(df.loc[index][column])
     if cell == "": 
-        return ""
+        return []  # return empty list so downstream .isin() calls don't get a stray string
     temp = cell.strip().split(",")
     return [s.strip() for s in temp]
-

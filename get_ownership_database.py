@@ -51,9 +51,16 @@ def get_owner_database_csv():
         print(f"Getting data for desired_vehicle_id: {desired_vehicle_id}")
         vehicle_df = get_owners_and_preowners(desired_vehicle_id)
         print(f"{vehicle_df.shape[0]} owners for vehicle_id {desired_vehicle_id}")
-        # Skip adding to df if no verified owners for vehicle
-        if vehicle_df.shape[0] == 0: 
-            continue
+
+        # Ensure every vehicle_id gets a row so downstream tabs are not skipped
+        if vehicle_df.shape[0] == 0:
+            vehicle_df = pd.DataFrame([{
+                "author_name": "__placeholder__",
+                "desired_vehicle_id": desired_vehicle_id,
+                "ownership_status": "",
+                "vehicle_name": vehicle_id_dict[desired_vehicle_id],
+            }])
+
         df = pd.concat([df, vehicle_df])
     df.to_csv(f"ownership_databases/ownership_database_{monday_str}.csv", index=False)
 

@@ -40,17 +40,24 @@ weekly_data.loc[anonymous_mask, "author_name"] = (
 
 # Correct subcategory tags
 tagging_corrections = {
-    "Overall Satisfaction With the Car": "Overall Satisfaction with the Car", 
+    "Overall Satisfaction With the Car": "Overall Satisfaction with the Vehicle", 
+    "Overall Satisfaction with the Car": "Overall Satisfaction with the Vehicle",
     "Range": "Range/Consumption", 
     "Switching to Another Brand": "Switching to Another Vehicle",
     "Overall Disappointment With the Brand": "Overall Satisfaction with the Brand", 
     "Communication From Brand": "Communication from Brand", 
     "Aftersales (OEM App Support)": "OEM App Support Team",
     "Owners Manual": "Owner's Manual", 
-    "Communication With Dealer": "Communication with Dealer"
+    "Communication With Dealer": "Communication with Dealer",
+    "Consumption/Range": "Range/Consumption",
+    "Infotainment": "Infotainment/Centerstack"
 }
 weekly_data["feedback_subcategory"] = weekly_data["feedback_subcategory"].replace(tagging_corrections) 
 # Adding 'Validation' column next to translated text
 weekly_data.insert(11, 'Validation', '')
+# When ownership_status is blank, fill from ownership_first
+weekly_data.loc[weekly_data['ownership_status'].isna(), 'ownership_status'] = weekly_data.loc[weekly_data['ownership_status'].isna(), 'ownership_second']
+weekly_data.loc[weekly_data['model_comparison'].isna(), 'model_comparison'] = 'False'
+weekly_data.loc[~weekly_data['is_malfunction'].isin([True, False]), 'is_malfunction'] = 'False'
 
 weekly_data.to_excel(f"{data_path}/added_facebook_names_{monday_str}.xlsx", index=False)

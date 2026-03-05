@@ -2,6 +2,13 @@ __pycache__/
 ownership_databases/
 secrets/
 weekly_data/
+LENS_passwords/
 .env
 .DS_Store
 test.csv
+CLAUDE.md
+testing.ipynb
+CODE_QUALITY_REVIEW.md
+data_outputs/
+added_malfunctions.xlsx
+recent_spreadsheet_link.txt
