@@ -1,3 +1,9 @@
+import sys
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
 from sqlalchemy import create_engine
 import pandas as pd
 import datetime
@@ -7,7 +13,7 @@ import os
 
 load_dotenv()
 
-vehicle_ids_df = pd.read_csv('vehicle_ids.csv')
+vehicle_ids_df = pd.read_csv(PROJECT_ROOT / 'vehicle_ids.csv')
 vehicle_id_dict = vehicle_dict = dict(zip(vehicle_ids_df["desired_vehicle_id"], vehicle_ids_df["vehicle_name"]))
 monday_str = get_monday_str()
 
@@ -62,7 +68,7 @@ def get_owner_database_csv():
             }])
 
         df = pd.concat([df, vehicle_df])
-    df.to_csv(f"ownership_databases/ownership_database_{monday_str}.csv", index=False)
+    df.to_csv(PROJECT_ROOT / f"ownership_databases/ownership_database_{monday_str}.csv", index=False)
 
 if __name__ == "__main__": 
     get_owner_database_csv()

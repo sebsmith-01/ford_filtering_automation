@@ -1,3 +1,9 @@
+import sys
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
 from sqlalchemy import create_engine
 import pandas as pd
 from datetime import date
@@ -19,18 +25,18 @@ EU7_COUNTRY_NAMES = {
     'NO': 'Norway'
 }
 
-START_DATE = date.today().replace(day=1)
-# START_DATE = date(2026, 2, 1)
-END_DATE = date.today()
-# END_DATE = date(2026, 2, 28)
+# START_DATE = date.today().replace(day=1)
+START_DATE = date(2026, 2, 1)
+# END_DATE = date.today()
+END_DATE = date(2026, 2, 28)
 
-vehicle_ids = pd.read_csv('vehicle_ids.csv')
+vehicle_ids = pd.read_csv(PROJECT_ROOT / 'vehicle_ids.csv')
 id_to_name = dict(zip(vehicle_ids["desired_vehicle_id"], vehicle_ids["vehicle_name"]))
 
-output_name = "kuga-feb.xlsx"
+output_name = "mach-e-feb.xlsx"
 
 # Choose a competitor set here. Must be spelt correctly
-competitor_set = "Kuga MCA"
+competitor_set = "Mustang Mach-E"
 include_showing_interest = False
 ownerships = "('Owner', 'Pre-Ownership', 'Showing Interest')" if include_showing_interest else "('Owner', 'Pre-Ownership')" 
 
@@ -88,9 +94,10 @@ df = pd.read_sql_query(query, con=ENGINE)
 df["model"] = df["desired_vehicle_id"].map(id_to_name)
 # df = df.loc[df['feedback_subcategory'].isin(topics)]
 
-if not (os.path.exists(os.path.join(os.getcwd(), f"data_outputs"))):
-    os.mkdir(f"data_outputs")
-df.to_excel(f"data_outputs/{output_name}", index=False)
+data_outputs = PROJECT_ROOT / "data_outputs"
+if not data_outputs.exists():
+    data_outputs.mkdir()
+df.to_excel(data_outputs / output_name, index=False)
 
 
 # Single model code first...

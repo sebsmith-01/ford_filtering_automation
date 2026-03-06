@@ -1,10 +1,16 @@
+import sys
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
 import pandas as pd
 import datetime
 import os
 from helper_functions import get_monday_str
 
 monday_str = get_monday_str()
-data_path = f"weekly_data/{monday_str}"
+data_path = PROJECT_ROOT / f"weekly_data/{monday_str}"
 for path in os.listdir(data_path): 
     if path.startswith("full_data"): 
         weekly_data = pd.read_excel(f"{data_path}/{path}", sheet_name="Sheet1")
@@ -60,4 +66,4 @@ weekly_data.loc[weekly_data['ownership_status'].isna(), 'ownership_status'] = we
 weekly_data.loc[weekly_data['model_comparison'].isna(), 'model_comparison'] = 'False'
 weekly_data.loc[~weekly_data['is_malfunction'].isin([True, False]), 'is_malfunction'] = 'False'
 
-weekly_data.to_excel(f"{data_path}/added_facebook_names_{monday_str}.xlsx", index=False)
+weekly_data.to_excel(data_path / f"added_facebook_names_{monday_str}.xlsx", index=False)

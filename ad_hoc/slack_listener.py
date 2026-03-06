@@ -1,5 +1,8 @@
 
 import os, sys, subprocess, json, pathlib, logging, requests, re
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 from datetime import datetime, timedelta
@@ -14,8 +17,8 @@ TARGET_USER = os.getenv("TARGET_USER")
 
 # will need editing on another person's machine
 DOWNLOAD_DIR     = "/Users/seb.smith/Downloads"
-PY_SCRIPT        = "run_all.py"
-STATE_FILE       = "./processed.json"
+PY_SCRIPT        = str(PROJECT_ROOT / "weekly_processing" / "run_all.py")
+STATE_FILE       = str(PROJECT_ROOT / "processed.json")
 
 now = datetime.now()
 monday_date = (now - timedelta(days=now.weekday())).date()

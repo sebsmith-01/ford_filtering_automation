@@ -1,6 +1,11 @@
+import sys
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
 import pandas as pd
 from helper_functions import google_sheet_to_dataframe
-import sys
 
 # Replace with value for current week (copy and paste from url)
 # sheet_id = "1Wt3BLHUSnQahP9QTYVdd1SX7YywfWw6aOXRD6SeDNG0"
@@ -21,7 +26,7 @@ tagging_corrections = {
 valid_sentiments = ["Negative", "Neutral", "Positive"]
 valid_ownership = ["Showing Interest", "Pre-Ownership", "Owner"]
 
-vehicle_ids_df = pd.read_csv('vehicle_ids.csv')
+vehicle_ids_df = pd.read_csv(PROJECT_ROOT / 'vehicle_ids.csv')
 vehicle_id_dict = vehicle_dict = dict(zip(vehicle_ids_df["vehicle_name"], vehicle_ids_df["desired_vehicle_id"]))
 
 # List of vehicle tabs with data to upload, edit accordingly

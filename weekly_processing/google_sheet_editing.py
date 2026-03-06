@@ -1,3 +1,9 @@
+import sys
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
 from helper_functions import get_monday_str, google_sheet_to_dataframe, get_cell_list
 from google_sheet_processor import GoogleSheetProcessor, _a1_col_to_index
 import pandas as pd
@@ -54,8 +60,8 @@ filtering_instructions = google_sheet_to_dataframe("ford_filtering_steps", "17kK
 filtering_instructions.set_index("vehicle_model", inplace=True)
 
 # For each vehicle id in current ownership database, add posts from vehicle's owners into corresponding tab
-weekly_data = pd.read_excel(f"weekly_data/{monday_str}/added_facebook_names_{monday_str}.xlsx")
-ownership_database = pd.read_csv(f"ownership_databases/ownership_database_{monday_str}.csv")
+weekly_data = pd.read_excel(PROJECT_ROOT / f"weekly_data/{monday_str}/added_facebook_names_{monday_str}.xlsx")
+ownership_database = pd.read_csv(PROJECT_ROOT / f"ownership_databases/ownership_database_{monday_str}.csv")
 
 # Get ownership counts for each author
 ownership_counts = (
@@ -139,5 +145,5 @@ for (veh_id, vehicle_name), grp in grouped:
     print(f"Pasted all posts into {vehicle_name} tab written by its verified owners!")
 
 print(f"Populated: {sheet.url}")
-with open("recent_spreadsheet_link.txt", "w") as f:
+with open(PROJECT_ROOT / "recent_spreadsheet_link.txt", "w") as f:
     f.write(sheet.url)
