@@ -61,7 +61,8 @@ tagging_corrections = {
 weekly_data["feedback_subcategory"] = weekly_data["feedback_subcategory"].replace(tagging_corrections) 
 # Adding 'Validation' column next to translated text
 weekly_data.insert(11, 'Validation', '')
-# When ownership_status is blank, fill from ownership_first
+# When ownership_status is blank, fill from ownership_second
+weekly_data['ownership_status'] = weekly_data['ownership_status'].astype(object)
 weekly_data.loc[weekly_data['ownership_status'].isna(), 'ownership_status'] = weekly_data.loc[weekly_data['ownership_status'].isna(), 'ownership_second']
 weekly_data.loc[weekly_data['model_comparison'].isna(), 'model_comparison'] = 'False'
 weekly_data.loc[~weekly_data['is_malfunction'].isin([True, False]), 'is_malfunction'] = 'False'
