@@ -148,6 +148,24 @@ class GoogleSheetProcessor:
         ).execute()
 
     # ------------------------------------------------------------------
+    # Row height
+    # ------------------------------------------------------------------
+
+    def reset_row_heights(self, tab_name: str, pixel_height: int = 21) -> None:
+        """Set all rows in a tab to a fixed pixel height (default 21, Google's normal)."""
+        tab_id = self.tab_ids[tab_name]
+        self._sheets.spreadsheets().batchUpdate(
+            spreadsheetId=self.spreadsheet_id,
+            body={"requests": [{
+                "updateDimensionProperties": {
+                    "range": {"sheetId": tab_id, "dimension": "ROWS"},
+                    "properties": {"pixelSize": pixel_height},
+                    "fields": "pixelSize",
+                }
+            }]}
+        ).execute()
+
+    # ------------------------------------------------------------------
     # Low-level escape hatch
     # ------------------------------------------------------------------
 

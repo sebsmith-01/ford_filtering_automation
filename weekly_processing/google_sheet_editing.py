@@ -63,7 +63,6 @@ filtering_instructions.set_index("vehicle_model", inplace=True)
 weekly_data = pd.read_excel(PROJECT_ROOT / f"weekly_data/{monday_str}/added_facebook_names_{monday_str}.xlsx")
 ownership_database = pd.read_csv(PROJECT_ROOT / f"ownership_databases/ownership_database_{monday_str}.csv")
 
-# Get ownership counts for each author
 ownership_counts = (
     ownership_database
     .loc[ownership_database["ownership_status"] == "Owner", ["author_name", "desired_vehicle_id"]]
@@ -76,10 +75,8 @@ TEMPLATE_URL = "https://docs.google.com/spreadsheets/d/1WridMYMZ4uuJWrNLmkG6JSTj
 
 sheet = GoogleSheetProcessor.from_template(TEMPLATE_URL, f"For report_{monday_str}", creds)
 
-# Columns to remain visible in vehicle tabs on google sheet
-VISIBLE_COLS = ["A","D","F","K","L","O","Z","AE","AH","AI","AX","BB","BC","BG","BM","BN","BO"]
+VISIBLE_COLS = ["A","D","F","K","L","O","Z","AE","AI","AJ","AY","BC","BD","BH","BN","BO","BP"]
 
-# grouped is a mini dataframe of authors for each (vehicle_id, vehicle_model)
 STATUS_ORDER = {"Owner": 3, "Pre-Ownership": 2, "Showing Interest": 1}
 grouped = ownership_database.groupby(["desired_vehicle_id", "vehicle_name"], dropna=False)
 
@@ -91,7 +88,6 @@ for (veh_id, vehicle_name), grp in grouped:
         continue  # skip rows without a usable tab name
 
     # Resolve each author's *best* status by precedence
-    # two underscores before rank to signify that its a throwaway column
     grp = grp.copy()
     grp["__rank"] = grp["ownership_status"].map(STATUS_ORDER).fillna(0)
     best = (
@@ -127,20 +123,27 @@ for (veh_id, vehicle_name), grp in grouped:
     include_mask = m_authors | m_models | m_all_domains | m_loc_domains | m_threads
     data_to_add = weekly_data.loc[include_mask].copy()
 
-    # Add vehicle_ownership_status column
     data_to_add["vehicle_ownership_status"] = np.where(
         data_to_add["author_name"].isin(authors),
         data_to_add["author_name"].map(author_to_status),
         ""
     )
 
-    # Add count of owned vehicles based on ownership_database
     data_to_add["ownership_count"] = data_to_add["author_name"].map(ownership_counts).fillna(0).astype(int)
+
+    data_to_add = (
+        data_to_add
+        .assign(__rank=data_to_add["vehicle_ownership_status"].map(STATUS_ORDER).fillna(0))
+        .sort_values("__rank", ascending=False)
+        .drop_duplicates(subset=["post_text", "feedback_subcategory"], keep="first")
+        .drop(columns="__rank")
+    )
 
     keep_idx = [_a1_col_to_index(c) for c in VISIBLE_COLS]
     max_cols = max(len(data_to_add.columns), max(keep_idx) + 1)
     sheet.overwrite_tab(vehicle_name, data_to_add)
     sheet.hide_columns_except(vehicle_name, VISIBLE_COLS, max_cols)
+    sheet.reset_row_heights(vehicle_name)
 
     print(f"Pasted all posts into {vehicle_name} tab written by its verified owners!")
 
