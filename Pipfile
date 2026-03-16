@@ -15,6 +15,9 @@ sqlalchemy = "*"
 psycopg2-binary = "*"
 slack-bolt = "*"
 requests = "*"
+aiohttp = "*"
+nest-asyncio = "*"
+tqdm = "*"
 
 [dev-packages]
 

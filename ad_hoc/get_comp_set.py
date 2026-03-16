@@ -26,17 +26,17 @@ EU7_COUNTRY_NAMES = {
 }
 
 # START_DATE = date.today().replace(day=1)
-START_DATE = date(2026, 2, 1)
+START_DATE = date(2025, 12, 16)
 # END_DATE = date.today()
-END_DATE = date(2026, 2, 28)
+END_DATE = date(2025, 12, 16)
 
 vehicle_ids = pd.read_csv(PROJECT_ROOT / 'vehicle_ids.csv')
 id_to_name = dict(zip(vehicle_ids["desired_vehicle_id"], vehicle_ids["vehicle_name"]))
 
-output_name = "mach-e-feb.xlsx"
+output_name = "explorer-fix.xlsx"
 
 # Choose a competitor set here. Must be spelt correctly
-competitor_set = "Mustang Mach-E"
+competitor_set = "Electric Explorer"
 include_showing_interest = False
 ownerships = "('Owner', 'Pre-Ownership', 'Showing Interest')" if include_showing_interest else "('Owner', 'Pre-Ownership')" 
 
@@ -90,9 +90,9 @@ WHERE
 
 df = pd.read_sql_query(query, con=ENGINE)
 # Editing 'model' so easier to create pivot tables 
-# topics = ["Driving Technologies"]
+topics = ["Driving Technologies"]
 df["model"] = df["desired_vehicle_id"].map(id_to_name)
-# df = df.loc[df['feedback_subcategory'].isin(topics)]
+df = df.loc[df['feedback_subcategory'].isin(topics)]
 
 data_outputs = PROJECT_ROOT / "data_outputs"
 if not data_outputs.exists():
