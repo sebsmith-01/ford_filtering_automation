@@ -42,6 +42,7 @@ def main() -> str:
     sheet = GoogleSheetProcessor.from_template(TEMPLATE_URL, f"For report_{monday_str}", creds)
 
     grouped = ownership_database.groupby(["desired_vehicle_id", "vehicle_name"], dropna=False)
+    vehicle_names: list[str] = []
 
     # Iterating through ownership database and adding all posts from vehicle owners to corresponding vehicle tab
     # Note that for this code to work, the vehicle name in ownership table must be the same as the tab name
@@ -109,6 +110,13 @@ def main() -> str:
         sheet.reset_row_heights(vehicle_name)
 
         print(f"Pasted all posts into {vehicle_name} tab written by its verified owners!")
+        vehicle_names.append(vehicle_name)
+
+    print("Filling missing translations...")
+    for vehicle_name in vehicle_names:
+        n = sheet.fill_missing_translations(vehicle_name)
+        if n:
+            print(f"  {vehicle_name}: wrote {n} GOOGLETRANSLATE formula(s)")
 
     print(f"Populated: {sheet.url}")
     with open(PROJECT_ROOT / "recent_spreadsheet_link.txt", "w") as f:

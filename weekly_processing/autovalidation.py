@@ -4,6 +4,9 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+to_run = []
+# to_run = ["Tesla Y"]
+
 import json
 import asyncio
 import logging
@@ -229,16 +232,28 @@ def main(spreadsheet_id: str | None = None):
     vehicle_ids = pd.read_csv(PROJECT_ROOT / "vehicle_ids.csv")
     worksheet_names = vehicle_ids["vehicle_name"].tolist()
 
-    for tab_name in worksheet_names:
-        print(f"Processing tab: {tab_name}")
-        df = sheet.read_tab(tab_name)
-        if df.empty:
-            print(f"  Skipping {tab_name} — tab is empty.")
-            continue
-        df = processor.run_async_processing(df)
-        sheet.write_dataframe(tab_name, df)
-        print(f"  Updated {tab_name} with autovalidation results.")
-
+    if not to_run: 
+        for tab_name in worksheet_names:
+            print(f"Processing tab: {tab_name}")
+            df = sheet.read_tab(tab_name)
+            if df.empty:
+                print(f"  Skipping {tab_name} — tab is empty.")
+                continue
+            df = processor.run_async_processing(df)
+            sheet.write_dataframe(tab_name, df)
+            print(f"  Updated {tab_name} with autovalidation results.")
+    else: 
+        for tab_name in to_run:
+            print(f"Processing tab: {tab_name}")
+            df = sheet.read_tab(tab_name)
+            if df.empty:
+                print(f"  Skipping {tab_name} — tab is empty.")
+                continue
+            df = processor.run_async_processing(df)
+            sheet.write_dataframe(tab_name, df)
+            print(f"  Updated {tab_name} with autovalidation results.")       
+        
+    
     print("Autovalidation complete.")
 
 

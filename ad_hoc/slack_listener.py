@@ -1,29 +1,36 @@
-
-import os, sys, subprocess, json, pathlib, logging, requests, re
+import json
+import logging
+import os
+import re
+import subprocess
+import sys
+from datetime import datetime, timedelta
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+import requests
+
+from dotenv import load_dotenv
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
-from datetime import datetime, timedelta
-from dotenv import load_dotenv
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
 
 load_dotenv()
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-APP_TOKEN = os.getenv("APP_TOKEN")
-TARGET_CHANNEL = os.getenv("TARGET_CHANNEL")
-TARGET_USER = os.getenv("TARGET_USER")
+BOT_TOKEN      = os.getenv("SLACK_BOT_TOKEN")
+APP_TOKEN      = os.getenv("SLACK_APP_TOKEN")
+TARGET_CHANNEL = os.getenv("SLACK_TARGET_CHANNEL")
+TARGET_USER    = os.getenv("SLACK_TARGET_USER")
 
-# will need editing on another person's machine
-DOWNLOAD_DIR     = "/Users/seb.smith/Downloads"
-PY_SCRIPT        = str(PROJECT_ROOT / "weekly_processing" / "run_all.py")
-STATE_FILE       = str(PROJECT_ROOT / "processed.json")
+DOWNLOAD_DIR = Path.home() / "Downloads"
+PY_SCRIPT    = PROJECT_ROOT / "weekly_processing" / "run_all.py"
+STATE_FILE   = PROJECT_ROOT / "processed.json"
 
 now = datetime.now()
 monday_date = (now - timedelta(days=now.weekday())).date()
-monday_iso = monday_date.strftime("%Y-%m-%d")
-monday_dmy = monday_date.strftime("d_%m_%Y")
+monday_iso  = monday_date.strftime("%Y-%m-%d")
+monday_dmy  = monday_date.strftime("d_%m_%Y")
 
 # Expected file name regexes (strict)
 RE_DATASET = re.compile(
@@ -33,39 +40,42 @@ RE_FULL = re.compile(
     rf"^full_data-{re.escape(monday_dmy)}\.xlsx$"
 )
 
-pathlib.Path(DOWNLOAD_DIR).mkdir(parents=True, exist_ok=True)
+DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
 processed = set()
-if pathlib.Path(STATE_FILE).exists():
-    try:
-        processed = set(json.loads(pathlib.Path(STATE_FILE).read_text()))
-    except Exception:
-        processed = set()
+try:
+    processed = set(json.loads(STATE_FILE.read_text()))
+except (FileNotFoundError, json.JSONDecodeError):
+    processed = set()
+
 
 def save_state():
-    pathlib.Path(STATE_FILE).write_text(json.dumps(sorted(processed)))
-    
-def _download_file(file_obj, out_dir: pathlib.Path) -> str:
+    STATE_FILE.write_text(json.dumps(sorted(processed)))
+
+
+def _download_file(file_obj, out_dir: Path, auth_headers: dict) -> str:
     url = file_obj.get("url_private_download") or file_obj.get("url_private")
     name = file_obj.get("name") or file_obj.get("id", "file.xlsx")
-    r = requests.get(url, headers=headers, timeout=120)
+    r = requests.get(url, headers=auth_headers, timeout=120)
     r.raise_for_status()
-    # Prefix with message ts later to avoid collisions if needed
     out_path = out_dir / name
     out_path.write_bytes(r.content)
     return str(out_path)
 
+
 def notify(title, text):
-    os.system("""
-              osascript -e 'display notification "{}" with title "{}"'
-              """.format(text, title))
+    subprocess.run(
+        ["osascript", "-e", f'display notification "{text}" with title "{title}"'],
+        check=False,
+    )
+
 
 app = App(token=BOT_TOKEN)
-headers = {"Authorization": f"Bearer {BOT_TOKEN}"}  # needed for url_private download
+_auth_headers = {"Authorization": f"Bearer {BOT_TOKEN}"}
+
 
 @app.event("message")
-def handle_message_events(body, event, logger):
+def handle_message_events(body, event, logger):  # body is required by slack_bolt's signature inspection
     try:
-        print("Message received...")
         if event.get("subtype") == "bot_message":
             return
         if event.get("channel") != TARGET_CHANNEL:
@@ -74,7 +84,6 @@ def handle_message_events(body, event, logger):
             logger.info("Message not from target user")
             return
 
-        # Tracks messages that have been timestamped
         ts = event.get("ts")
         if not ts or ts in processed:
             return
@@ -83,9 +92,8 @@ def handle_message_events(body, event, logger):
         if len(files) != 2:
             logger.info(f"Ignoring ts={ts}: expected 2 files, got {len(files)}")
             return
-        
+
         names = [(f.get("name") or "") for f in files]
-        # Must be one dataset_* and one full_data-* for this week's Monday
         matches = {
             "dataset": [i for i, n in enumerate(names) if RE_DATASET.match(n)],
             "full":    [i for i, n in enumerate(names) if RE_FULL.match(n)],
@@ -97,38 +105,40 @@ def handle_message_events(body, event, logger):
             )
             return
 
-        notify("Tagging Automation", "Detected Ford Files on Slack, Downloading and triggering filtering script...")
-        idx_dataset = matches["dataset"][0]
-        idx_full = matches["full"][0]
+        notify("Tagging Automation", "Detected Ford files on Slack — downloading and running pipeline...")
 
-        downloaded_dataset = _download_file(files[idx_dataset], pathlib.Path(DOWNLOAD_DIR))
-        downloaded_full    = _download_file(files[idx_full],    pathlib.Path(DOWNLOAD_DIR))
+        downloaded_dataset = _download_file(files[matches["dataset"][0]], DOWNLOAD_DIR, _auth_headers)
+        downloaded_full    = _download_file(files[matches["full"][0]],    DOWNLOAD_DIR, _auth_headers)
+        logger.info(f"Downloaded:\n  {downloaded_dataset}\n  {downloaded_full}")
 
-        logger.info(f"Downloaded:\n- {downloaded_dataset}\n- {downloaded_full}")
+        cmd = [sys.executable, str(PY_SCRIPT)]
+        logger.info(f"Running: {' '.join(cmd)}")
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        logger.info(
+            f"Pipeline finished (exit={result.returncode})\n"
+            f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+        )
 
-        # # Run python script
-        # cmd = [sys.executable, PY_SCRIPT]
-        # logger.info(f"Running: {' '.join(cmd)}")
-        # result = subprocess.run(cmd, capture_output=True, text=True)
-        # logger.info(
-        #     "Process finished "
-        #     f"(exit={result.returncode})\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
-        # )
+        if result.returncode == 0:
+            notify("Tagging Automation", "Pipeline complete!")
+        else:
+            notify("Tagging Automation", f"Pipeline failed (exit {result.returncode}) — check logs.")
 
-        # # Mark processed (avoid dupes if you start it again before exiting)
-        # processed.add(ts)
-        # save_state()
+        processed.add(ts)
+        save_state()
 
-        # Exit immediately after the run
-        logger.info("Done for this week — exiting listener now.")
+        logger.info("Done for this week — exiting listener.")
         logging.shutdown()
         os._exit(0)
+
     except Exception:
         logger.exception("Handler error")
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     logging.info(
-        f"Expecting file names for Monday {monday_iso} / {monday_dmy} in {TARGET_CHANNEL} from {TARGET_USER}"
+        f"Listening — expecting files for Monday {monday_iso} / {monday_dmy} "
+        f"in channel {TARGET_CHANNEL} from user {TARGET_USER}"
     )
     SocketModeHandler(app, APP_TOKEN).start()

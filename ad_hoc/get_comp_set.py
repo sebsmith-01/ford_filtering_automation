@@ -26,17 +26,17 @@ EU7_COUNTRY_NAMES = {
 }
 
 # START_DATE = date.today().replace(day=1)
-START_DATE = date(2025, 12, 16)
+START_DATE = date(2026, 3, 1)
 # END_DATE = date.today()
-END_DATE = date(2025, 12, 16)
+END_DATE = date(2026, 3, 31)
 
 vehicle_ids = pd.read_csv(PROJECT_ROOT / 'vehicle_ids.csv')
 id_to_name = dict(zip(vehicle_ids["desired_vehicle_id"], vehicle_ids["vehicle_name"]))
 
-output_name = "explorer-fix.xlsx"
+output_name = "transit-may.xlsx"
 
-# Choose a competitor set here. Must be spelt correctly
-competitor_set = "Electric Explorer"
+# Choos a competitor set here. Must be spelt correctly
+competitor_set = "Ford Capri"
 include_showing_interest = False
 ownerships = "('Owner', 'Pre-Ownership', 'Showing Interest')" if include_showing_interest else "('Owner', 'Pre-Ownership')" 
 
@@ -52,11 +52,12 @@ COMPETITOR_SETS = {
     "Mustang Mach-E": [16, 2, 17],
     "Puma Gen-E": [25, 26, 27, 28],
     "Electric Explorer": [1, 2, 3, 4, 5, 6],
-    "Ford Capri": [20, 21, 22, 23, 24, 3],
+    "Ford Capri": [20, 21, 22, 24],
     "Kuga MCA": [7],
     "Puma MCA": [11],
     "Transit Custom": [36, 37, 38, 39, 40, 41], 
-    "All": [i for i in range(1, 42)]
+    "All": [i for i in range(1, 42)],
+    "Ranger": [30, 31, 32, 33, 34, 35]
 }
 
 comp_set_string = (str(COMPETITOR_SETS.get(competitor_set))).strip('[]') 
@@ -90,9 +91,9 @@ WHERE
 
 df = pd.read_sql_query(query, con=ENGINE)
 # Editing 'model' so easier to create pivot tables 
-topics = ["Driving Technologies"]
+# topics = ["Driving Technologies"]
 df["model"] = df["desired_vehicle_id"].map(id_to_name)
-df = df.loc[df['feedback_subcategory'].isin(topics)]
+# df = df.loc[df['feedback_subcategory'].isin(topics)]
 
 data_outputs = PROJECT_ROOT / "data_outputs"
 if not data_outputs.exists():
@@ -234,6 +235,11 @@ def model_intro(competitor_set: str, month_dataframe: pd.DataFrame):
         if not model_stats:
             return ""
 
+        ford_id = competitor_ids[0]
+        ford_stats = next((s for s in model_stats if s["id"] == ford_id), None)
+        other_stats = sorted([s for s in model_stats if s["id"] != ford_id], key=lambda s: s["volume"], reverse=True)
+        model_stats = ([ford_stats] if ford_stats else []) + other_stats
+
         volume_phrases = []
         for idx, stats in enumerate(model_stats):
             if idx == 0:
@@ -269,7 +275,7 @@ def model_intro(competitor_set: str, month_dataframe: pd.DataFrame):
             market_segments = [
                 f"from {country} for {format_list(models)}" for country, models in ordered_groups
             ]
-            markets_sentence = f"In terms of markets, {format_list(market_segments)}."
+            markets_sentence = f"In terms of markets, most mentions came {format_list(market_segments)}."
         else:
             markets_sentence = "In terms of markets, insufficient data to report top countries."
 

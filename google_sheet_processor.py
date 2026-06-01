@@ -1,6 +1,21 @@
 import re
+import time
 import pandas as pd
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+
+
+def _execute(request, max_retries: int = 6):
+    """Execute an API request, retrying on 429 rate-limit errors with exponential backoff."""
+    for attempt in range(max_retries + 1):
+        try:
+            return request.execute()
+        except HttpError as e:
+            if e.resp.status == 429 and attempt < max_retries:
+                wait = 2 ** attempt  # 1 s, 2 s, 4 s, 8 s, 16 s, 32 s
+                time.sleep(wait)
+            else:
+                raise
 
 
 def extract_file_id(url_or_id: str) -> str:
@@ -19,6 +34,16 @@ def _a1_col_to_index(col: str) -> int:
         else:
             break
     return n - 1
+
+
+def _col_index_to_a1(idx: int) -> str:
+    """Convert 0-based column index to A1 column letters (0->A, 25->Z, 26->AA, ...)."""
+    result = ""
+    n = idx + 1
+    while n > 0:
+        n, rem = divmod(n - 1, 26)
+        result = chr(ord("A") + rem) + result
+    return result
 
 
 class GoogleSheetProcessor:
@@ -46,7 +71,7 @@ class GoogleSheetProcessor:
         """Copy a template spreadsheet and return a processor for the new file."""
         drive = build("drive", "v3", credentials=creds)
         file_id = extract_file_id(template_url_or_id)
-        new_file = drive.files().copy(fileId=file_id, body={"name": name}).execute()
+        new_file = _execute(drive.files().copy(fileId=file_id, body={"name": name}))
         return cls(new_file["id"], creds)
 
     # ------------------------------------------------------------------
@@ -61,11 +86,13 @@ class GoogleSheetProcessor:
     def tab_ids(self) -> dict[str, int]:
         """Mapping of tab name -> sheetId (lazy-loaded, cached)."""
         if self._tab_ids is None:
-            meta = self._sheets.spreadsheets().get(spreadsheetId=self.spreadsheet_id).execute()
-            self._tab_ids = {
-                s["properties"]["title"]: s["properties"]["sheetId"]
-                for s in meta.get("sheets", [])
-            }
+            meta = _execute(self._sheets.spreadsheets().get(spreadsheetId=self.spreadsheet_id))
+            self._tab_ids = {}
+            self._frozen_rows: dict[str, int] = {}
+            for s in meta.get("sheets", []):
+                title = s["properties"]["title"]
+                self._tab_ids[title] = s["properties"]["sheetId"]
+                self._frozen_rows[title] = s["properties"].get("gridProperties", {}).get("frozenRowCount", 0)
         return self._tab_ids
 
     # ------------------------------------------------------------------
@@ -74,35 +101,154 @@ class GoogleSheetProcessor:
 
     def read_tab(self, tab_name: str) -> pd.DataFrame:
         """Read a tab and return it as a DataFrame."""
-        result = self._sheets.spreadsheets().values().get(
+        result = _execute(self._sheets.spreadsheets().values().get(
             spreadsheetId=self.spreadsheet_id,
             range=f"'{tab_name}'"
-        ).execute()
+        ))
         rows = result.get("values", [])
         if not rows:
             return pd.DataFrame()
         return pd.DataFrame(rows[1:], columns=rows[0])
 
     def clear_tab(self, tab_name: str) -> None:
-        self._sheets.spreadsheets().values().clear(
+        _execute(self._sheets.spreadsheets().values().clear(
             spreadsheetId=self.spreadsheet_id,
             range=f"'{tab_name}'!A:ZZ"
-        ).execute()
+        ))
 
-    def write_dataframe(self, tab_name: str, df: pd.DataFrame) -> None:
-        """Write a DataFrame to a tab, starting at A1 (header + data)."""
-        values = [list(df.columns)] + df.astype(object).where(pd.notnull(df), "").values.tolist()
-        self._sheets.spreadsheets().values().update(
+    def _ensure_tab_size(self, tab_name: str, row_count: int, col_count: int) -> None:
+        """Expand a tab's grid so it has at least row_count rows and col_count columns."""
+        tab_id = self.tab_ids[tab_name]
+        frozen = getattr(self, "_frozen_rows", {}).get(tab_name, 0)
+        row_count = max(row_count, frozen + 1)
+        _execute(self._sheets.spreadsheets().batchUpdate(
             spreadsheetId=self.spreadsheet_id,
-            range=f"'{tab_name}'!A1",
-            valueInputOption="RAW",
-            body={"values": values},
-        ).execute()
+            body={"requests": [{"updateSheetProperties": {
+                "properties": {
+                    "sheetId": tab_id,
+                    "gridProperties": {"rowCount": row_count, "columnCount": col_count},
+                },
+                "fields": "gridProperties.rowCount,gridProperties.columnCount",
+            }}]},
+        ))
+
+    def write_dataframe(self, tab_name: str, df: pd.DataFrame, chunk_size: int = 500) -> None:
+        """Write a DataFrame to a tab, starting at A1 (header + data), in chunks."""
+        df = df.copy()
+        for col in df.select_dtypes(include=["datetimetz", "datetime64"]).columns:
+            df[col] = df[col].dt.strftime("%Y-%m-%d %H:%M:%S")
+        rows = [list(df.columns)] + df.astype(object).where(pd.notnull(df), "").values.tolist()
+        needed_rows = max(len(rows), 1)
+        needed_cols = max(len(df.columns), 1)
+        self._ensure_tab_size(tab_name, needed_rows, needed_cols)
+        for i in range(0, len(rows), chunk_size):
+            chunk = rows[i:i + chunk_size]
+            start_row = i + 1  # 1-based
+            _execute(self._sheets.spreadsheets().values().update(
+                spreadsheetId=self.spreadsheet_id,
+                range=f"'{tab_name}'!A{start_row}",
+                valueInputOption="RAW",
+                body={"values": chunk},
+            ))
 
     def overwrite_tab(self, tab_name: str, df: pd.DataFrame) -> None:
         """Clear a tab then write a DataFrame to it."""
         self.clear_tab(tab_name)
         self.write_dataframe(tab_name, df)
+
+    def fill_missing_translations(
+        self,
+        tab_name: str,
+        source_col: str = "post_text",
+        target_col: str = "translated_text",
+        chunk_size: int = 500,
+        poll_interval: float = 10.0,
+        poll_timeout: float = 300.0,
+    ) -> int:
+        """Fill empty target_col cells with translations of source_col, written as static values.
+
+        Writes GOOGLETRANSLATE formulas, polls until Sheets computes them, then overwrites
+        each cell with its plain-text result so the sheet contains no live formulas.
+        Returns the number of cells filled.
+        """
+        result = _execute(self._sheets.spreadsheets().values().get(
+            spreadsheetId=self.spreadsheet_id,
+            range=f"'{tab_name}'"
+        ))
+        rows = result.get("values", [])
+        if not rows:
+            return 0
+
+        headers = rows[0]
+        if source_col not in headers or target_col not in headers:
+            return 0
+
+        src_idx = headers.index(source_col)
+        tgt_idx = headers.index(target_col)
+        src_letter = _col_index_to_a1(src_idx)
+        tgt_letter = _col_index_to_a1(tgt_idx)
+
+        # Identify rows where target is empty but source has content (sheet row numbers, 1-based)
+        formula_rows: list[int] = []
+        for i, row in enumerate(rows[1:], start=2):
+            tgt_val = row[tgt_idx] if tgt_idx < len(row) else ""
+            src_val = row[src_idx] if src_idx < len(row) else ""
+            if not str(tgt_val).strip() and str(src_val).strip():
+                formula_rows.append(i)
+
+        if not formula_rows:
+            return 0
+
+        # Write GOOGLETRANSLATE formulas
+        formula_data = [
+            {
+                "range": f"'{tab_name}'!{tgt_letter}{r}",
+                "values": [[f'=GOOGLETRANSLATE({src_letter}{r},"auto","en")']],
+            }
+            for r in formula_rows
+        ]
+        for i in range(0, len(formula_data), chunk_size):
+            _execute(self._sheets.spreadsheets().values().batchUpdate(
+                spreadsheetId=self.spreadsheet_id,
+                body={"valueInputOption": "USER_ENTERED", "data": formula_data[i:i + chunk_size]},
+            ))
+
+        # Poll until all formulas have computed (non-empty, non-formula value in each cell)
+        formula_row_set = set(formula_rows)
+        deadline = time.time() + poll_timeout
+        col_value_map: dict[int, str] = {}
+        while time.time() < deadline:
+            time.sleep(poll_interval)
+            col_result = _execute(self._sheets.spreadsheets().values().get(
+                spreadsheetId=self.spreadsheet_id,
+                range=f"'{tab_name}'!{tgt_letter}:{tgt_letter}",
+                valueRenderOption="FORMATTED_VALUE",
+            ))
+            col_values = col_result.get("values", [])
+            col_value_map = {i + 1: (row[0] if row else "") for i, row in enumerate(col_values)}
+            pending = [
+                r for r in formula_rows
+                if not str(col_value_map.get(r, "")).strip()
+            ]
+            if not pending:
+                break
+
+        # Write computed values back as static text (RAW so they are not re-interpreted)
+        static_data = [
+            {
+                "range": f"'{tab_name}'!{tgt_letter}{r}",
+                "values": [[col_value_map.get(r, "")]],
+            }
+            for r in formula_rows
+            if str(col_value_map.get(r, "")).strip()
+        ]
+        for i in range(0, len(static_data), chunk_size):
+            _execute(self._sheets.spreadsheets().values().batchUpdate(
+                spreadsheetId=self.spreadsheet_id,
+                body={"valueInputOption": "RAW", "data": static_data[i:i + chunk_size]},
+            ))
+
+        return len(formula_rows)
 
     # ------------------------------------------------------------------
     # Column visibility
@@ -142,10 +288,10 @@ class GoogleSheetProcessor:
         for idx in keep_sorted:
             requests.append(_unhide_range_request(tab_id, idx, idx + 1))
 
-        self._sheets.spreadsheets().batchUpdate(
+        _execute(self._sheets.spreadsheets().batchUpdate(
             spreadsheetId=self.spreadsheet_id,
             body={"requests": requests}
-        ).execute()
+        ))
 
     # ------------------------------------------------------------------
     # Row height
@@ -154,7 +300,7 @@ class GoogleSheetProcessor:
     def reset_row_heights(self, tab_name: str, pixel_height: int = 21) -> None:
         """Set all rows in a tab to a fixed pixel height (default 21, Google's normal)."""
         tab_id = self.tab_ids[tab_name]
-        self._sheets.spreadsheets().batchUpdate(
+        _execute(self._sheets.spreadsheets().batchUpdate(
             spreadsheetId=self.spreadsheet_id,
             body={"requests": [{
                 "updateDimensionProperties": {
@@ -163,7 +309,7 @@ class GoogleSheetProcessor:
                     "fields": "pixelSize",
                 }
             }]}
-        ).execute()
+        ))
 
     # ------------------------------------------------------------------
     # Low-level escape hatch
@@ -171,10 +317,10 @@ class GoogleSheetProcessor:
 
     def batch_update(self, requests: list[dict]) -> dict:
         """Send arbitrary batchUpdate requests to the Sheets API."""
-        return self._sheets.spreadsheets().batchUpdate(
+        return _execute(self._sheets.spreadsheets().batchUpdate(
             spreadsheetId=self.spreadsheet_id,
             body={"requests": requests}
-        ).execute()
+        ))
 
 
 # ------------------------------------------------------------------
