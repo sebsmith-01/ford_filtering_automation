@@ -16,7 +16,7 @@ steps = [
     ("get_ownership_database", run_ownership_db),
     ("add_facebook_names", run_add_facebook_names),
     ("google_sheet_editing", run_google_sheet_editing), 
-    # ("autovalidation", run_autovalidation)
+    ("autovalidation", run_autovalidation)
 ]
 
 for name, fn in steps:
