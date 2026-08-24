@@ -5,7 +5,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 to_run = []
-# to_run = ["Tesla Y"]
+# to_run = ["EX30"]
 
 import json
 import asyncio
@@ -13,7 +13,6 @@ import logging
 import os
 
 import aiohttp
-import nest_asyncio
 import pandas as pd
 from dotenv import load_dotenv
 from tqdm.asyncio import tqdm
@@ -134,7 +133,6 @@ class LLMBase:
         self.semaphore = asyncio.Semaphore(max_concurrent_requests)
         self.retries = retries
         self.timeout = aiohttp.ClientTimeout(total=timeout)
-        nest_asyncio.apply()
 
     async def async_request(self, prompt):
         payload = {
