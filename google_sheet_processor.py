@@ -108,7 +108,10 @@ class GoogleSheetProcessor:
         rows = result.get("values", [])
         if not rows:
             return pd.DataFrame()
-        return pd.DataFrame(rows[1:], columns=rows[0])
+        max_cols = max(len(r) for r in rows)
+        header = rows[0] + [""] * (max_cols - len(rows[0]))
+        data = [r + [""] * (max_cols - len(r)) for r in rows[1:]]
+        return pd.DataFrame(data, columns=header)
 
     def clear_tab(self, tab_name: str) -> None:
         _execute(self._sheets.spreadsheets().values().clear(
