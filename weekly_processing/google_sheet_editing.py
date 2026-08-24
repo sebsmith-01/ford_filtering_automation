@@ -5,7 +5,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from helper_functions import get_monday_str, google_sheet_to_dataframe, get_cell_list
-from google_sheet_processor import GoogleSheetProcessor, _a1_col_to_index
+from google_sheet_processor import GoogleSheetProcessor, _a1_col_to_index, extract_file_id
 from auth import get_creds
 import pandas as pd
 import numpy as np
@@ -18,11 +18,36 @@ TEMPLATE_URL = "https://docs.google.com/spreadsheets/d/1WridMYMZ4uuJWrNLmkG6JSTj
 VISIBLE_COLS = ["A", "D", "F", "K", "L", "O", "Z", "AE", "AI", "AJ", "AY", "BC", "BD", "BH", "BN", "BO", "BP"]
 STATUS_ORDER = {"Owner": 3, "Pre-Ownership": 2, "Showing Interest": 1}
 
+# Tabs that are manually curated week-over-week (not regenerated from scraped data).
+# The template's copy of these is a stale snapshot, so each week's accumulated edits
+# must be carried forward from last week's spreadsheet instead of taken from the template.
+OWNER_TABS = ["Kuga Owners", "Puma Owners"]
+
+
+def carry_forward_owner_tabs(sheet: GoogleSheetProcessor, prev_url: str | None, creds) -> None:
+    """Copy manually-curated owner-tracking tabs from last week's spreadsheet into the new one."""
+    if not prev_url:
+        print("  no previous spreadsheet link found, skipping owner tab carry-forward")
+        return
+
+    prev_sheet = GoogleSheetProcessor(extract_file_id(prev_url), creds)
+    for tab_name in OWNER_TABS:
+        if tab_name not in prev_sheet.tab_ids or tab_name not in sheet.tab_ids:
+            print(f"  skipping '{tab_name}' (tab not found in previous or new sheet)")
+            continue
+        df = prev_sheet.read_tab(tab_name)
+        if df.empty:
+            continue
+        sheet.overwrite_tab(tab_name, df)
+        print(f"  carried forward '{tab_name}' from last week's sheet")
+
 
 def main() -> str:
     """Run google sheet editing pipeline. Returns the new spreadsheet ID."""
     creds = get_creds()
     monday_str = get_monday_str()
+    link_path = PROJECT_ROOT / "recent_spreadsheet_link.txt"
+    prev_url = link_path.read_text().strip() if link_path.exists() else None
 
     filtering_instructions = google_sheet_to_dataframe("ford_filtering_steps", "17kK-tOIpwBsYT_I98Me8SwGqq-5MBJZAXWxB7AlVsvQ")
     filtering_instructions.set_index("vehicle_model", inplace=True)
@@ -40,6 +65,9 @@ def main() -> str:
     )
 
     sheet = GoogleSheetProcessor.from_template(TEMPLATE_URL, f"For report_{monday_str}", creds)
+
+    print("Carrying forward owner-tracking tabs from last week's sheet...")
+    carry_forward_owner_tabs(sheet, prev_url, creds)
 
     grouped = ownership_database.groupby(["desired_vehicle_id", "vehicle_name"], dropna=False)
     vehicle_names: list[str] = []
