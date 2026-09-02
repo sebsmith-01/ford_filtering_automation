@@ -17,6 +17,7 @@ def main():
     for path in os.listdir(data_path):
         if path.startswith("full_data"):
             weekly_data = pd.read_excel(f"{data_path}/{path}", sheet_name="Sheet1")
+            weekly_data = weekly_data.drop(columns=["post_text_embedding"], errors="ignore")
             cols = list(weekly_data.columns)
             cols[35] = "id-2"   # column AJ
             cols[55] = "id-3"   # column BD
