@@ -1,18 +1,29 @@
 import re
+import socket
+import ssl
 import time
 import pandas as pd
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
+_RETRYABLE_NETWORK_ERRORS = (TimeoutError, socket.timeout, ssl.SSLError, ConnectionError)
+
 
 def _execute(request, max_retries: int = 6):
-    """Execute an API request, retrying on 429 rate-limit errors with exponential backoff."""
+    """Execute an API request, retrying on 429/5xx errors and transient network
+    timeouts with exponential backoff."""
     for attempt in range(max_retries + 1):
         try:
             return request.execute()
         except HttpError as e:
-            if e.resp.status == 429 and attempt < max_retries:
+            if e.resp.status in (429, 500, 502, 503, 504) and attempt < max_retries:
                 wait = 2 ** attempt  # 1 s, 2 s, 4 s, 8 s, 16 s, 32 s
+                time.sleep(wait)
+            else:
+                raise
+        except _RETRYABLE_NETWORK_ERRORS:
+            if attempt < max_retries:
+                wait = 2 ** attempt
                 time.sleep(wait)
             else:
                 raise
@@ -44,6 +55,15 @@ def _col_index_to_a1(idx: int) -> str:
         n, rem = divmod(n - 1, 26)
         result = chr(ord("A") + rem) + result
     return result
+
+
+def _a1_cell_to_row_col(cell: str) -> tuple[int, int]:
+    """Convert an A1 cell reference (e.g. "A1") to 0-based (row, col) indices."""
+    m = re.match(r"([A-Za-z]+)(\d+)$", cell.strip())
+    if not m:
+        raise ValueError(f"invalid A1 cell reference: {cell!r}")
+    col_letters, row_num = m.groups()
+    return int(row_num) - 1, _a1_col_to_index(col_letters)
 
 
 class GoogleSheetProcessor:
@@ -252,6 +272,33 @@ class GoogleSheetProcessor:
             ))
 
         return len(formula_rows)
+
+    # ------------------------------------------------------------------
+    # Data validation
+    # ------------------------------------------------------------------
+
+    def copy_data_validation(
+        self, source_tab: str, source_cell: str, dest_tab: str, dest_col_letter: str, start_row: int = 2
+    ) -> None:
+        """Copy a cell's data validation rule (e.g. a dropdown) onto a destination column,
+        from start_row (1-based) to the bottom of the sheet, via a copyPaste request."""
+        src_row, src_col = _a1_cell_to_row_col(source_cell)
+        dest_col = _a1_col_to_index(dest_col_letter)
+        self.batch_update([{
+            "copyPaste": {
+                "source": {
+                    "sheetId": self.tab_ids[source_tab],
+                    "startRowIndex": src_row, "endRowIndex": src_row + 1,
+                    "startColumnIndex": src_col, "endColumnIndex": src_col + 1,
+                },
+                "destination": {
+                    "sheetId": self.tab_ids[dest_tab],
+                    "startRowIndex": start_row - 1,
+                    "startColumnIndex": dest_col, "endColumnIndex": dest_col + 1,
+                },
+                "pasteType": "PASTE_DATA_VALIDATION",
+            }
+        }])
 
     # ------------------------------------------------------------------
     # Column visibility

@@ -5,8 +5,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from helper_functions import get_monday_str, google_sheet_to_dataframe, get_cell_list
-from google_sheet_processor import GoogleSheetProcessor, _a1_col_to_index, extract_file_id
+from google_sheet_processor import GoogleSheetProcessor, _a1_col_to_index, _col_index_to_a1, extract_file_id
 from auth import get_creds
+from ad_hoc.collect_report_sheets import add_new_sheet as add_to_report_folder
 import pandas as pd
 import numpy as np
 
@@ -24,6 +25,14 @@ STATUS_ORDER = {"Owner": 3, "Pre-Ownership": 2, "Showing Interest": 1}
 OWNER_TABS = ["Kuga Owners", "Puma Owners"]
 
 
+def apply_validation_dropdown(sheet: GoogleSheetProcessor, tab_name: str, df: pd.DataFrame) -> None:
+    """Copy the 'Validation Checklist'!A1 dropdown onto a tab's Validation column, if present."""
+    if df.empty or "Validation" not in df.columns:
+        return
+    col_letter = _col_index_to_a1(df.columns.get_loc("Validation"))
+    sheet.copy_data_validation("Validation Checklist", "A1", tab_name, col_letter)
+
+
 def carry_forward_owner_tabs(sheet: GoogleSheetProcessor, prev_url: str | None, creds) -> None:
     """Copy manually-curated owner-tracking tabs from last week's spreadsheet into the new one."""
     if not prev_url:
@@ -39,6 +48,7 @@ def carry_forward_owner_tabs(sheet: GoogleSheetProcessor, prev_url: str | None, 
         if df.empty:
             continue
         sheet.overwrite_tab(tab_name, df)
+        apply_validation_dropdown(sheet, tab_name, df)
         print(f"  carried forward '{tab_name}' from last week's sheet")
 
 
@@ -65,6 +75,9 @@ def main() -> str:
     )
 
     sheet = GoogleSheetProcessor.from_template(TEMPLATE_URL, f"For report_{monday_str}", creds)
+
+    print("Adding new sheet to the 'For report' Drive folder...")
+    add_to_report_folder(sheet.spreadsheet_id, creds)
 
     print("Carrying forward owner-tracking tabs from last week's sheet...")
     carry_forward_owner_tabs(sheet, prev_url, creds)
@@ -134,6 +147,7 @@ def main() -> str:
         keep_idx = [_a1_col_to_index(c) for c in VISIBLE_COLS]
         max_cols = max(len(data_to_add.columns), max(keep_idx) + 1)
         sheet.overwrite_tab(vehicle_name, data_to_add)
+        apply_validation_dropdown(sheet, vehicle_name, data_to_add)
         sheet.hide_columns_except(vehicle_name, VISIBLE_COLS, max_cols)
         sheet.reset_row_heights(vehicle_name)
 

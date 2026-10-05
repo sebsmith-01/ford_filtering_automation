@@ -26,7 +26,7 @@ python weekly_processing/autovalidation.py
 ```
 
 **Prerequisites before running:**
-- Download `full_data-{date}.xlsx` and `dataset_facebook-groups-scraper_{datetime}.xlsx` to `~/Downloads/`
+- Download `full_data-{date}.xlsx` to `~/Downloads/` (Facebook Groups author names, comment counts and image flags now come through in this file, so the scraper export is no longer needed)
 - Ensure `.env` is populated (see Environment Variables below)
 
 ## Environment Variables (`.env`)
@@ -56,9 +56,9 @@ Google Sheets auth uses OAuth (not service account) — first run opens a browse
 
 | Script | Input | Output |
 |---|---|---|
-| `weekly_processing/move_files.py` | `~/Downloads/full_data-*.xlsx` and `dataset_facebook-*.xlsx` | `weekly_data/{monday_str}/` |
+| `weekly_processing/move_files.py` | `~/Downloads/full_data-*.xlsx` | `weekly_data/{monday_str}/` |
 | `weekly_processing/get_ownership_database.py` | `vehicle_ids.csv`, Ford DB | `ownership_databases/ownership_database_{monday_str}.csv` |
-| `weekly_processing/add_facebook_names.py` | `weekly_data/{monday_str}/full_data-*.xlsx` + `dataset_facebook-*.xlsx` | `weekly_data/{monday_str}/added_facebook_names_{monday_str}.xlsx` |
+| `weekly_processing/add_facebook_names.py` | `weekly_data/{monday_str}/full_data-*.xlsx` (anonymous authors, tag corrections, column cleanup — name is historical) | `weekly_data/{monday_str}/added_facebook_names_{monday_str}.xlsx` |
 | `weekly_processing/google_sheet_editing.py` | `added_facebook_names_*.xlsx`, `ownership_database_*.csv`, filtering instructions Google Sheet | New `For_report_{monday_str}` Google Sheet |
 | `weekly_processing/autovalidation.py` | `recent_spreadsheet_link.txt`, `vehicle_ids.csv`, OpenAI API | LLM-generated `validation_auto`, `confidence`, `reasoning`, `is_malfunction_auto`, `model_comparison_auto` columns written to each vehicle tab |
 
@@ -67,6 +67,7 @@ Google Sheets auth uses OAuth (not service account) — first run opens a browse
 Run from the repo root:
 - `ad_hoc/excel_upload.py` — builds upload-ready Excel from a completed tagging sheet; edit `sheet_id` and `vehicles_to_upload` at the top before running
 - `ad_hoc/get_comp_set.py` — queries the DB for a competitor set and generates HTML report text; edit `competitor_set`, `output_name`, and date range at the top before running
+- `ad_hoc/collect_report_sheets.py` — gathers every Google Sheet whose name starts with "For report"/"For_report" into one Drive folder (shortcuts by default; set `move_files = True` to move the originals). `google_sheet_editing.py` also calls its `add_new_sheet()` so each new weekly sheet is added automatically
 - `ad_hoc/slack_listener.py` (WIP) — listens for Ford data files on Slack and triggers the pipeline
 
 ## Architecture Notes

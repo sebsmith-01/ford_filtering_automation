@@ -225,31 +225,24 @@ def main(spreadsheet_id: str | None = None):
 
     creds = get_creds()
     sheet = GoogleSheetProcessor(spreadsheet_id, creds)
-    processor = VehicleProcessor(OPENAI_API_KEY)
 
     vehicle_ids = pd.read_csv(PROJECT_ROOT / "vehicle_ids.csv")
     worksheet_names = vehicle_ids["vehicle_name"].tolist()
 
-    if not to_run: 
-        for tab_name in worksheet_names:
-            print(f"Processing tab: {tab_name}")
-            df = sheet.read_tab(tab_name)
-            if df.empty:
-                print(f"  Skipping {tab_name} — tab is empty.")
-                continue
-            df = processor.run_async_processing(df)
-            sheet.write_dataframe(tab_name, df)
-            print(f"  Updated {tab_name} with autovalidation results.")
-    else: 
-        for tab_name in to_run:
-            print(f"Processing tab: {tab_name}")
-            df = sheet.read_tab(tab_name)
-            if df.empty:
-                print(f"  Skipping {tab_name} — tab is empty.")
-                continue
-            df = processor.run_async_processing(df)
-            sheet.write_dataframe(tab_name, df)
-            print(f"  Updated {tab_name} with autovalidation results.")       
+    tabs_to_process = worksheet_names if not to_run else to_run
+    for tab_name in tabs_to_process:
+        print(f"Processing tab: {tab_name}")
+        df = sheet.read_tab(tab_name)
+        if df.empty:
+            print(f"  Skipping {tab_name} — tab is empty.")
+            continue
+        # Fresh processor (and semaphore) per tab: asyncio.run() creates a new
+        # event loop each call, and a semaphore reused across loops raises
+        # "bound to a different event loop".
+        processor = VehicleProcessor(OPENAI_API_KEY)
+        df = processor.run_async_processing(df)
+        sheet.write_dataframe(tab_name, df)
+        print(f"  Updated {tab_name} with autovalidation results.")
         
     
     print("Autovalidation complete.")

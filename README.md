@@ -2,13 +2,13 @@
 This series of scripts automates the weekly filtering of posts from social media, Facebook groups, and forums relating to a set of vehicles, and creates a Google Sheet of posts to review for each vehicle, ready for human validation. 
 Each script is run in order (using the run_all.py script), starting with...
 ## move_files.py
-Moves the most recently downloaded weekly data files, 'full_data-{date}.xlsx' and 'dataset_facebook-groups-scraper_{datetime}.xlsx' into a working folder 'weekly_data/{monday date of current week}.
+Moves the most recently downloaded weekly data file, 'full_data-{date}.xlsx', into a working folder 'weekly_data/{monday date of current week}.
 ## get_ownership_database.py
 Iterates through each vehicle_id (stored in vehicle_ids.csv) and fetches all recorded owners, pre-owners, and 'showing interest' authors for the id's corresponding vehicle. 
 The returned dataset is stored in ownership_databases/
 Credentials for the Ford database are stored in a .env file.
 ## add_facebook_names.py
-In the full_data-{date}.xlsx file, author_names for posts from Facebook groups are missing. This script matches author_name values of posts using the 'url' column and 'url' (or 'facebookUrl') in the 'dataset_facebook-groups-scraper_{datetime}.xlsx' spreadsheet.
+Cleans the full_data-{date}.xlsx file. (Facebook Groups author names, comment counts and image flags used to be looked up from the Facebook groups scraper export; they now come through in full_data directly, so no lookup is needed.)
 For author_names starting with 'anonymous', author_name is set to 'author {mention_id}' to ensure that the Ford Lens platform doesn't recognise posts from two anonymous writers as being from a unique author.
 feedback_subcategory values need to be frequently changed. This script also 'corrects' feedback_subcategory names by using a dictionary (e.g. Range -> Range/Consumption).
 The cleaned dataset is stored as weekly_data/{date}/added_facebook_names{date}.xlsx

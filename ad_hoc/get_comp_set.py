@@ -26,17 +26,17 @@ EU7_COUNTRY_NAMES = {
 }
 
 # START_DATE = date.today().replace(day=1)
-START_DATE = date(2026, 3, 1)
-# END_DATE = date.today()
-END_DATE = date(2026, 3, 31)
+START_DATE = date(2026, 9, 1)
+END_DATE = date.today()
+# END_DATE = date(2026, 8, 31)
 
 vehicle_ids = pd.read_csv(PROJECT_ROOT / 'vehicle_ids.csv')
 id_to_name = dict(zip(vehicle_ids["desired_vehicle_id"], vehicle_ids["vehicle_name"]))
 
-output_name = "transit-may.xlsx"
+output_name = "puma-mentions.xlsx"
 
-# Choos a competitor set here. Must be spelt correctly
-competitor_set = "Ford Capri"
+# Choose a competitor set here. Must be spelt correctly
+competitor_set = "Mustang Mach-E"  # Options: "Mustang Mach-E", "Puma Gen-E", "Electric Explorer", "Ford Capri", "Kuga MCA", "Puma MCA", "Transit Custom", "All", "Ranger"
 include_showing_interest = False
 ownerships = "('Owner', 'Pre-Ownership', 'Showing Interest')" if include_showing_interest else "('Owner', 'Pre-Ownership')" 
 
