@@ -362,6 +362,18 @@ class GoogleSheetProcessor:
         ))
 
     # ------------------------------------------------------------------
+    # Sharing
+    # ------------------------------------------------------------------
+
+    def share_with(self, email: str, role: str = "reader") -> None:
+        """Give a user (or service account) access to the spreadsheet without emailing them."""
+        _execute(self._drive.permissions().create(
+            fileId=self.spreadsheet_id,
+            body={"type": "user", "role": role, "emailAddress": email},
+            sendNotificationEmail=False,
+        ))
+
+    # ------------------------------------------------------------------
     # Low-level escape hatch
     # ------------------------------------------------------------------
 

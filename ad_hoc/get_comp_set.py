@@ -27,8 +27,8 @@ EU7_COUNTRY_NAMES = {
 
 # START_DATE = date.today().replace(day=1)
 START_DATE = date(2026, 9, 1)
-END_DATE = date.today()
-# END_DATE = date(2026, 8, 31)
+# END_DATE = date.today()
+END_DATE = date(2026, 9, 30)
 
 vehicle_ids = pd.read_csv(PROJECT_ROOT / 'vehicle_ids.csv')
 id_to_name = dict(zip(vehicle_ids["desired_vehicle_id"], vehicle_ids["vehicle_name"]))
@@ -51,12 +51,12 @@ ENGINE = create_engine(f'postgresql+psycopg2://{user}:{password}@{host}:{port}/{
 COMPETITOR_SETS = {
     "Mustang Mach-E": [16, 2, 17],
     "Puma Gen-E": [25, 26, 27, 28],
-    "Electric Explorer": [1, 2, 3, 4, 5, 6],
+    "Electric Explorer": [1, 2, 4, 5, 6],
     "Ford Capri": [20, 21, 22, 24],
     "Kuga MCA": [7],
     "Puma MCA": [11],
-    "Transit Custom": [36, 37, 38, 39, 40, 41], 
-    "All": [i for i in range(1, 42)],
+    "Transit Custom": [36, 37, 38, 39, 40], 
+    "All": [i for i in range(1, 42) if i not in (3, 23, 29, 41)],
     "Ranger": [30, 31, 32, 33, 34, 35]
 }
 

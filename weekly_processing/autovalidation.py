@@ -19,6 +19,7 @@ from tqdm.asyncio import tqdm
 
 from auth import get_creds
 from google_sheet_processor import GoogleSheetProcessor, extract_file_id
+from helper_functions import get_spreadsheet_url
 
 load_dotenv()
 
@@ -218,10 +219,12 @@ class VehicleProcessor(LLMBase):
 
 def main(spreadsheet_id: str | None = None):
     """Run autovalidation on all vehicle tabs. spreadsheet_id can be passed directly
-    from the pipeline or will fall back to reading recent_spreadsheet_link.txt."""
+    from the pipeline or will fall back to the most recent week in spreadsheet_links.csv."""
     if spreadsheet_id is None:
-        with open(PROJECT_ROOT / "recent_spreadsheet_link.txt") as f:
-            spreadsheet_id = extract_file_id(f.read().strip())
+        url = get_spreadsheet_url()
+        if url is None:
+            raise FileNotFoundError("No spreadsheet recorded in spreadsheet_links.csv — run google_sheet_editing.py first")
+        spreadsheet_id = extract_file_id(url)
 
     creds = get_creds()
     sheet = GoogleSheetProcessor(spreadsheet_id, creds)

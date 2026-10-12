@@ -4,9 +4,9 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from helper_functions import get_monday_str, google_sheet_to_dataframe, get_cell_list
+from helper_functions import get_monday_str, google_sheet_to_dataframe, get_cell_list, get_spreadsheet_url, save_spreadsheet_url
 from google_sheet_processor import GoogleSheetProcessor, _a1_col_to_index, _col_index_to_a1, extract_file_id
-from auth import get_creds
+from auth import get_creds, get_service_account_email
 from ad_hoc.collect_report_sheets import add_new_sheet as add_to_report_folder
 import pandas as pd
 import numpy as np
@@ -56,8 +56,9 @@ def main() -> str:
     """Run google sheet editing pipeline. Returns the new spreadsheet ID."""
     creds = get_creds()
     monday_str = get_monday_str()
-    link_path = PROJECT_ROOT / "recent_spreadsheet_link.txt"
-    prev_url = link_path.read_text().strip() if link_path.exists() else None
+    # Most recent sheet on record — if this week's sheet is being recreated, that's this week's
+    # existing sheet, so owner-tab edits made in it since Monday are carried over too
+    prev_url = get_spreadsheet_url()
 
     filtering_instructions = google_sheet_to_dataframe("ford_filtering_steps", "17kK-tOIpwBsYT_I98Me8SwGqq-5MBJZAXWxB7AlVsvQ")
     filtering_instructions.set_index("vehicle_model", inplace=True)
@@ -75,6 +76,9 @@ def main() -> str:
     )
 
     sheet = GoogleSheetProcessor.from_template(TEMPLATE_URL, f"For report_{monday_str}", creds)
+
+    # Copies don't keep the template's sharing; tagging_accuracy.py reads the sheet as the service account
+    sheet.share_with(get_service_account_email())
 
     print("Adding new sheet to the 'For report' Drive folder...")
     add_to_report_folder(sheet.spreadsheet_id, creds)
@@ -161,8 +165,7 @@ def main() -> str:
             print(f"  {vehicle_name}: wrote {n} GOOGLETRANSLATE formula(s)")
 
     print(f"Populated: {sheet.url}")
-    with open(PROJECT_ROOT / "recent_spreadsheet_link.txt", "w") as f:
-        f.write(sheet.url)
+    save_spreadsheet_url(monday_str, sheet.url)
 
     return sheet.spreadsheet_id
 

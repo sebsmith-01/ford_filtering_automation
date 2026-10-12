@@ -1,7 +1,6 @@
 ﻿desired_vehicle_id,vehicle_name
 1,Explorer
 2,ID.4
-3,E-3008
 4,Megane
 5,Enyaq
 6,XC40
@@ -12,13 +11,11 @@
 20,Capri
 21,ID.5
 22,Enyaq Coupe
-23,Q4 Sportback
 24,EV6
 25,Puma Gen-E
 26,EX30
 27,ID.3
 28,Kona E
-29,E-2008
 30,Ranger
 31,Hilux
 32,Amarok
@@ -30,6 +27,5 @@
 38,Vito
 39,Expert
 40,Trafic
-41,ProAce
 42,R4
 43,R5

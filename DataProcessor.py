@@ -12,7 +12,6 @@ EU7_COUNTRY_NAMES = {
 
 VEHICLE_MODELS = {1: ("Ford Electric Explorer", "Explorer"), 
                  2: ("Volkswagen ID.4", "ID.4"), 
-                 3: ("Peugeot E-3008", "E-3008"),
                  4: ("Renault Megane E-Tech", "Megane E-Tech"), 
                  5: ("Skoda Enyaq", "Enyaq"), 
                  6: ("Volvo XC40 Recharge/EX40", "XC40 Recharge"), 
@@ -25,13 +24,11 @@ VEHICLE_MODELS = {1: ("Ford Electric Explorer", "Explorer"),
                  20: ("Ford Capri", "Capri"), 
                  21: ("Volkswagen ID.5", "ID.5"), 
                  22: ("Skoda Enyaq Coupe", "Enyaq Coupe"), 
-                 23: ("Audi Q4 E-Tron Sportback", "Q4 E-Tron Sportback"), 
                  24: ("Kia EV6", "EV6"), 
                  25: ("Puma Gen-E", "Puma Gen-E"), 
                  26: ("Volvo EX30", "EX30"), 
                  27: ("Volkswagen ID.3", "ID.3"), 
-                 28: ("Hyundai Kona Electric", "Kona Electric"), 
-                 29: ("Peugeot E-2008", "E-2008")}
+                 28: ("Hyundai Kona Electric", "Kona Electric")}
 
 class DataProcessor: 
     def __init__(self, df: pd.DataFrame):

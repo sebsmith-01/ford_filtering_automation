@@ -10,9 +10,10 @@ testing.ipynb
 CODE_QUALITY_REVIEW.md
 data_outputs/
 added_malfunctions.xlsx
-recent_spreadsheet_link.txt
+spreadsheet_links.csv
 deleted_feedbacks.csv
 *.sh
 ford_facebook_groups.xlsx
 .vscode
 weekly_data.zip
+accuracy_reports/
