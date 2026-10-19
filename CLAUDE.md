@@ -83,6 +83,7 @@ Run from the repo root:
 - Filtering instructions are fetched at runtime from a Google Sheet (tab: `ford_filtering_steps`, sheet ID `17kK-tOIpwBsYT_I98Me8SwGqq-5MBJZAXWxB7AlVsvQ`), indexed by `vehicle_model`
 - `VISIBLE_COLS` in `google_sheet_editing.py` controls which columns are shown vs hidden in the output sheet
 - `CODE_QUALITY_REVIEW.md` documents known bugs and bad practices — consult it before making changes
+- `PERFORMANCE_REVIEW.md` lists the pipeline's speed bottlenecks (autovalidation, translation polling, Sheets write quota, Excel I/O, DB query), ranked with proposed fixes and checkboxes; consult it before performance work and tick items off as they're done
 
 ## Dependencies
 

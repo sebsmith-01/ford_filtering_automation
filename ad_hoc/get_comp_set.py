@@ -25,10 +25,10 @@ EU7_COUNTRY_NAMES = {
     'NO': 'Norway'
 }
 
-# START_DATE = date.today().replace(day=1)
-START_DATE = date(2026, 9, 1)
-# END_DATE = date.today()
-END_DATE = date(2026, 9, 30)
+START_DATE = date.today().replace(day=1)
+# START_DATE = date(2026, 9, 1)
+END_DATE = date.today()
+# END_DATE = date(2026, 9, 30)
 
 vehicle_ids = pd.read_csv(PROJECT_ROOT / 'vehicle_ids.csv')
 id_to_name = dict(zip(vehicle_ids["desired_vehicle_id"], vehicle_ids["vehicle_name"]))
@@ -36,7 +36,7 @@ id_to_name = dict(zip(vehicle_ids["desired_vehicle_id"], vehicle_ids["vehicle_na
 output_name = "puma-mentions.xlsx"
 
 # Choose a competitor set here. Must be spelt correctly
-competitor_set = "Mustang Mach-E"  # Options: "Mustang Mach-E", "Puma Gen-E", "Electric Explorer", "Ford Capri", "Kuga MCA", "Puma MCA", "Transit Custom", "All", "Ranger"
+competitor_set = "Puma MCA"  # Options: "Mustang Mach-E", "Puma Gen-E", "Electric Explorer", "Ford Capri", "Kuga MCA", "Puma MCA", "Transit Custom", "All", "Ranger"
 include_showing_interest = False
 ownerships = "('Owner', 'Pre-Ownership', 'Showing Interest')" if include_showing_interest else "('Owner', 'Pre-Ownership')" 
 
