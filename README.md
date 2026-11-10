@@ -24,6 +24,11 @@ This script performs the following operations:
     - Combines the masks with a logical OR, filters weekly_data with this mask, and adds 'vehicle_ownership_status' and 'ownership_count' columns (ownership_count declares how many vehicles in our set the author owns)
     - Pastes this data into the vehicle's corresponding Google Sheets tab, and hides the columns not included in VISIBLE_COLS
 
+## new_pipeline_columns.py
+Runs last. Reads the week's results of the platform's trained-tagging pipeline from S3 and adds five columns right after each vehicle tab's Validation column: New autovalidation (Hit/Maybe/Miss), New tags, New: this tag? (whether the new pipeline also has the row's tag, and with what sentiment), New ownership and New country.
+If the results are not in S3 yet it waits (up to 90 minutes by default), then leaves the sheet as it is. Tabs that already have the columns are skipped, so it can be rerun on its own: `python weekly_processing/new_pipeline_columns.py --week {monday date}`.
+AWS read credentials for the results are stored in the .env file.
+
 The following scripts are also included: 
 ## excel_upload.py
 Contructs a properly formatted excel spreadsheet of all 'hits' for a set of vehicles in vehicles_to_upload, pulling from the week's tagging file, ready to upload to our database.

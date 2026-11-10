@@ -8,13 +8,13 @@ This project automates the weekly filtering of social media posts relating to a 
 
 ## Running the Pipeline
 
-The main pipeline runs four scripts in sequence:
+The main pipeline runs six scripts in sequence:
 
 ```bash
 python weekly_processing/run_all.py
 ```
 
-This runs: `move_files.py` → `get_ownership_database.py` → `add_facebook_names.py` → `google_sheet_editing.py` → `autovalidation.py` (all within `weekly_processing/`)
+This runs: `move_files.py` → `get_ownership_database.py` → `add_facebook_names.py` → `google_sheet_editing.py` → `autovalidation.py` → `new_pipeline_columns.py` (all within `weekly_processing/`)
 
 Individual scripts can be run directly from the repo root:
 ```bash
@@ -23,6 +23,7 @@ python weekly_processing/get_ownership_database.py
 python weekly_processing/add_facebook_names.py
 python weekly_processing/google_sheet_editing.py
 python weekly_processing/autovalidation.py
+python weekly_processing/new_pipeline_columns.py   # --week YYYY-MM-DD, --no-wait
 ```
 
 **Prerequisites before running:**
@@ -38,6 +39,8 @@ python weekly_processing/autovalidation.py
 | `GOOGLE_OAUTH_TOKEN_JSON` | Path to OAuth token file (auto-generated on first run) |
 | `GOOGLE_OAUTH_CLIENT_JSON` | Path to OAuth client secrets JSON (Desktop app) |
 | `OPENAI_API_KEY` | OpenAI API key used by `autovalidation.py` |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION` | Read-only key for the trained-tagging results in S3 (`fluency-data-platform`, `eu-west-1`), used by `new_pipeline_columns.py` |
+| `NEW_PIPELINE_WAIT_MINUTES` | Optional: how long `new_pipeline_columns.py` waits for the week's results (default 90) |
 | `SLACK_BOT_TOKEN` | Slack bot token (`xoxb-...`) for `slack_listener.py` and `tagging_accuracy.py` (needs `chat:write` + `files:write`, bot invited to the channel) |
 | `SLACK_APP_TOKEN` | Slack app-level token (`xapp-...`) for Socket Mode |
 | `SLACK_TARGET_CHANNEL` | Channel ID to listen in (e.g. `C12345678`) |
@@ -61,6 +64,7 @@ Google Sheets auth uses OAuth (not service account) — first run opens a browse
 | `weekly_processing/add_facebook_names.py` | `weekly_data/{monday_str}/full_data-*.xlsx` (anonymous authors, tag corrections, column cleanup — name is historical) | `weekly_data/{monday_str}/added_facebook_names_{monday_str}.xlsx` |
 | `weekly_processing/google_sheet_editing.py` | `added_facebook_names_*.xlsx`, `ownership_database_*.csv`, filtering instructions Google Sheet | New `For_report_{monday_str}` Google Sheet |
 | `weekly_processing/autovalidation.py` | most recent week in `spreadsheet_links.csv`, `vehicle_ids.csv`, OpenAI API | LLM-generated `validation_auto`, `confidence`, `reasoning`, `is_malfunction_auto`, `model_comparison_auto` columns written to each vehicle tab |
+| `weekly_processing/new_pipeline_columns.py` | week's sheet in `spreadsheet_links.csv`, newest trained-tagging run of the week in S3 (`exports/ford/trained_tagging/*_verdicts.parquet` + `*_feedback.parquet`, `exports/ford/improved_upstream/*_vehicle_mentions.parquet`) | Five columns inserted right after Validation in each vehicle tab: `New autovalidation`, `New tags`, `New: this tag?`, `New ownership`, `New country`. Must run after `autovalidation.py`, which rewrites whole tabs; waits for the results, skips tabs that already have the columns, writes nothing if under half the rows match |
 
 ### Ad-hoc / standalone scripts
 
@@ -76,7 +80,7 @@ Run from the repo root:
 - `auth.py` — shared OAuth logic: `get_creds()`, `SCOPES`, `TOKEN_PATH`, `CLIENT_SECRET_PATH`. Import from here in any script that needs Google auth.
 - `helper_functions.py` — shared utilities: `get_monday_str()`, `google_sheet_to_dataframe()`, `get_cell_list()`, `get_spreadsheet_url()`, `save_spreadsheet_url()`
 - `DataProcessor.py` — `DataProcessor` class for computing volume/sentiment/market stats per vehicle; `VEHICLE_MODELS` dict maps `desired_vehicle_id` → `(long_name, short_name)`. Used by `ad_hoc/get_comp_set.py`.
-- `google_sheet_processor.py` — `GoogleSheetProcessor` class wrapping the Sheets and Drive APIs for a single spreadsheet. Key methods: `from_template()` (classmethod, copies a template), `read_tab()`, `clear_tab()`, `write_dataframe()`, `overwrite_tab()`, `hide_columns_except()`, `batch_update()`. Tab IDs are lazy-loaded and cached in `tab_ids`. Also exports `extract_file_id()` for parsing Google Drive URLs.
+- `google_sheet_processor.py` — `GoogleSheetProcessor` class wrapping the Sheets and Drive APIs for a single spreadsheet. Key methods: `from_template()` (classmethod, copies a template), `read_tab()`, `clear_tab()`, `write_dataframe()`, `write_values()`, `overwrite_tab()`, `tables()`, `hide_columns_except()`, `batch_update()`. Tab IDs are lazy-loaded and cached in `tab_ids`. Also exports `extract_file_id()` for parsing Google Drive URLs.
 - Each pipeline script exposes a `main()` function; `run_all.py` imports and calls them directly (no subprocesses). `google_sheet_editing.main()` returns the new `spreadsheet_id`, which is passed directly to `autovalidation.main(spreadsheet_id)` — no file-based IPC needed.
 - Filtering logic lives in `google_sheet_editing.py`: five boolean masks (owner authors, brand+model+country, all-domain, location-domain+country, thread title) are OR-combined per vehicle
 - EU5 = DE, FR, ES, IT, UK; EU7 = DE, FR, ES, IT, UK, NL, NO (adds Netherlands and Norway) — check `is_EU7` flag per vehicle in the filtering instructions sheet
@@ -87,4 +91,4 @@ Run from the repo root:
 
 ## Dependencies
 
-`requirements.txt` only lists `slack-bolt`, `slack-sdk`, and `requests`. The remainder (pandas, openpyxl, google-api-python-client, google-auth-oauthlib, sqlalchemy, psycopg2, python-dotenv) must be installed separately.
+`requirements.txt` only lists `slack-bolt`, `slack-sdk`, and `requests`. The remainder (pandas, openpyxl, google-api-python-client, google-auth-oauthlib, sqlalchemy, psycopg2, python-dotenv, boto3, pyarrow) must be installed separately.
