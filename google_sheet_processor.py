@@ -174,6 +174,28 @@ class GoogleSheetProcessor:
                 body={"values": chunk},
             ))
 
+    def write_values(self, tab_name: str, start_row: int, start_col: int, rows: list[list],
+                     chunk_size: int = 500) -> None:
+        """Write a block of values (list of rows) with its top-left cell at 0-based (start_row, start_col), in chunks."""
+        col = _col_index_to_a1(start_col)
+        for i in range(0, len(rows), chunk_size):
+            _execute(self._sheets.spreadsheets().values().update(
+                spreadsheetId=self.spreadsheet_id,
+                range=f"'{tab_name}'!{col}{start_row + i + 1}",
+                valueInputOption="RAW",
+                body={"values": rows[i:i + chunk_size]},
+            ))
+
+    def tables(self, tab_name: str) -> list[dict]:
+        """The Tables (Format > Convert to table) on a tab, as returned by the Sheets API."""
+        meta = _execute(self._sheets.spreadsheets().get(
+            spreadsheetId=self.spreadsheet_id, fields="sheets(properties.sheetId,tables)"))
+        tab_id = self.tab_ids[tab_name]
+        for s in meta.get("sheets", []):
+            if s["properties"]["sheetId"] == tab_id:
+                return s.get("tables", [])
+        return []
+
     def overwrite_tab(self, tab_name: str, df: pd.DataFrame) -> None:
         """Clear a tab then write a DataFrame to it."""
         self.clear_tab(tab_name)

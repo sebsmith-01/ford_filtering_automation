@@ -18,6 +18,8 @@ requests = "*"
 aiohttp = "*"
 nest-asyncio = "*"
 tqdm = "*"
+boto3 = "*"
+pyarrow = "*"
 
 [dev-packages]
 
